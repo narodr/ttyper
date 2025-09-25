@@ -14,6 +14,7 @@ use crossterm::{
 use rand::{seq::SliceRandom, thread_rng};
 use ratatui::{backend::CrosstermBackend, terminal::Terminal};
 use rust_embed::RustEmbed;
+use rand::Rng;
 use std::{
     ffi::OsString,
     fs,
@@ -64,6 +65,9 @@ struct Opt {
     /// Enable sudden death mode to restart on first error
     #[arg(long)]
     sudden_death: bool,
+
+    #[arg(short, long)]
+    punctuation: bool,
 }
 
 impl Opt {
@@ -119,6 +123,10 @@ impl Opt {
                     .collect();
                 contents.shuffle(&mut rng);
 
+                if self.punctuation {
+                    contents = add_punctuation(contents, 0.2)
+                }
+
                 Some(contents)
             }
         }
@@ -168,6 +176,49 @@ impl Opt {
     fn language_dir(&self) -> PathBuf {
         self.config_dir().join("language")
     }
+}
+
+fn add_punctuation(contents: Vec<String>, freq: f64) -> Vec<String> {
+    fn capitalize_first_letter(s: &str) -> String {
+        let mut c = s.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }
+    
+    let punctuations = ['.', ',', ';'];
+    let mut rng = rand::thread_rng();
+    let mut processed: Vec<String> = Vec::new();
+
+    for (i, word) in contents.iter().enumerate() {
+        let mut word = word.clone();
+
+        if i == 0
+            || (i > 0 && processed.last().map(|w| w.ends_with('.')).unwrap_or(false))
+        {
+            word = capitalize_first_letter(&word);
+        }
+        if i < contents.len() - 1 && rng.gen_bool(freq) {
+            if let Some(punct) = punctuations.choose(&mut rng) {
+                word.push(*punct);
+            }
+        }
+        
+        processed.push(word);
+    }
+
+    if let Some(first) = processed.first_mut() {
+        *first = capitalize_first_letter(first);
+    }
+
+    if let Some(last) = processed.last_mut() {
+        if !last.ends_with('.') {
+            last.push('.');
+        };
+    }
+
+    processed
 }
 
 enum State {

@@ -66,6 +66,7 @@ struct Opt {
     #[arg(long)]
     sudden_death: bool,
 
+    /// Enable punctuation
     #[arg(short, long)]
     punctuation: bool,
 }
